@@ -1,3 +1,4 @@
+import cv2
 import chainer
 import chainer.functions as F
 import chainer.links as L
@@ -18,8 +19,8 @@ from model import Discriminator
 from visualize import visualize
 
 # Define constants
-N = 1000    # Minibatch size
-M = 15000
+N = 100     # Minibatch size
+M = 30000
 SNAPSHOT_INTERVAL = 10
 REAL_LABEL = 1
 FAKE_LABEL = 0
@@ -40,14 +41,22 @@ def main():
         with zipfile.ZipFile('dataset/animeface-character-dataset.zip', 'r') as stream:
             stream.extractall('dataset/')
         train = []
+        cascade = cv2.CascadeClassifier('lbpcascade_animeface.xml')
         for path in glob.iglob('dataset/**/*.png', recursive=True):
-            x = Image.open(path).convert('RGB')
-            x = x.resize((64, 64), Image.ANTIALIAS)
-            x = np.asarray(x, dtype='f') / 255.
-            x = x.transpose(2, 0, 1)
-            x = x.reshape((3, 64, 64))
-            train.append(np.asarray(x))
+            image = cv2.imread(path)
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            rects = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=1, minSize=(32, 32))
+            for rect in rects:
+                u, v, w, h = rect
+                x = Image.open(path).convert('RGB')
+                x = x.crop((u, v, u + w, v + h))
+                x = x.resize((64, 64), Image.ANTIALIAS)
+                x = np.asarray(x, dtype='f') / 255.
+                x = x.transpose(2, 0, 1)
+                x = x.reshape((3, 64, 64))
+                train.append(np.asarray(x))
         train = np.asarray(train, dtype='f')
+        print(len(train))
         np.save('dataset/animeface-character-dataset', train)
     os.remove('dataset/animeface-character-dataset.zip') if os.path.exists('dataset/animeface-character-dataset.zip') else None
     shutil.rmtree('dataset/animeface-character-dataset', ignore_errors=True)
