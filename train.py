@@ -20,7 +20,6 @@ from visualize import visualize
 
 # Define constants
 N = 100     # Minibatch size
-M = 30000
 SNAPSHOT_INTERVAL = 10
 REAL_LABEL = 1
 FAKE_LABEL = 0
@@ -33,19 +32,20 @@ def main():
     os.mkdir('train/') if not os.path.isdir('train') else None
 
     # (Download dataset)
-    if not os.path.exists('dataset/animeface-character-dataset.npy'):
-        url = 'http://www.nurs.or.jp/~nagadomi/animeface-character-dataset/data/animeface-character-dataset.zip'
-        response = urllib.request.urlopen(url)
-        with open('dataset/animeface-character-dataset.zip', 'wb') as stream:
-            stream.write(response.read())
-        with zipfile.ZipFile('dataset/animeface-character-dataset.zip', 'r') as stream:
-            stream.extractall('dataset/')
+    # if not os.path.exists('dataset/animeface-character-dataset.npy'):
+    if False:
+        # url = 'http://www.nurs.or.jp/~nagadomi/animeface-character-dataset/data/animeface-character-dataset.zip'
+        # response = urllib.request.urlopen(url)
+        # with open('dataset/animeface-character-dataset.zip', 'wb') as stream:
+        #     stream.write(response.read())
+        # with zipfile.ZipFile('dataset/animeface-character-dataset.zip', 'r') as stream:
+        #     stream.extractall('dataset/')
         train = []
         cascade = cv2.CascadeClassifier('lbpcascade_animeface.xml')
         for path in glob.iglob('dataset/**/*.png', recursive=True):
             image = cv2.imread(path)
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            rects = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=1, minSize=(32, 32))
+            rects = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=1, minSize=(64, 64))
             for rect in rects:
                 u, v, w, h = rect
                 x = Image.open(path).convert('RGB')
@@ -55,22 +55,20 @@ def main():
                 x = x.transpose(2, 0, 1)
                 x = x.reshape((3, 64, 64))
                 train.append(np.asarray(x))
+                x[0] = np.fliplr(x[0])
+                x[1] = np.fliplr(x[1])
+                x[2] = np.fliplr(x[2])
+                train.append(np.asarray(x))
         train = np.asarray(train, dtype='f')
         print(len(train))
         np.save('dataset/animeface-character-dataset', train)
-    os.remove('dataset/animeface-character-dataset.zip') if os.path.exists('dataset/animeface-character-dataset.zip') else None
-    shutil.rmtree('dataset/animeface-character-dataset', ignore_errors=True)
+    # os.remove('dataset/animeface-character-dataset.zip') if os.path.exists('dataset/animeface-character-dataset.zip') else None
+    # shutil.rmtree('dataset/animeface-character-dataset', ignore_errors=True)
 
     # Create samples.
     train = np.load('dataset/animeface-character-dataset.npy').reshape((-1, 3, 64, 64))
     train = np.random.permutation(train)
     validation_z = xp.random.uniform(low=-1.0, high=1.0, size=(100, 100)).astype('f')
-
-    # (Align the number of data)
-    _ = np.zeros((M, 3, 64, 64), dtype='f')
-    for n in range(M):
-        _[n] = train[n % len(train)]
-    train = _
 
     # Create the model
     gen = Generator()
@@ -115,7 +113,7 @@ def main():
         total_loss_dis = 0.0
         total_loss_gen = 0.0
 
-        for n in range(0, M, N):
+        for n in range(0, len(train), N):
 
             ############################
             # (1) Update D network
@@ -145,8 +143,8 @@ def main():
             total_loss_gen += loss_gen.data
 
         # (View loss)
-        total_loss_dis /= M / N
-        total_loss_gen /= M / N
+        total_loss_dis /= len(train) / N
+        total_loss_gen /= len(train) / N
         print(epoch, total_loss_dis, total_loss_gen)
 
 
