@@ -1,4 +1,4 @@
-# dcgan-mnist
+# dcgan-cartoon
 animeface-character-datasetを使用したDCGANによるアニメキャラクター画像生成のテストです。
 
 ## 実行方法
