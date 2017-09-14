@@ -32,14 +32,13 @@ def main():
     os.mkdir('train/') if not os.path.isdir('train') else None
 
     # (Download dataset)
-    # if not os.path.exists('dataset/animeface-character-dataset.npy'):
-    if False:
-        # url = 'http://www.nurs.or.jp/~nagadomi/animeface-character-dataset/data/animeface-character-dataset.zip'
-        # response = urllib.request.urlopen(url)
-        # with open('dataset/animeface-character-dataset.zip', 'wb') as stream:
-        #     stream.write(response.read())
-        # with zipfile.ZipFile('dataset/animeface-character-dataset.zip', 'r') as stream:
-        #     stream.extractall('dataset/')
+    if not os.path.exists('dataset/animeface-character-dataset.npy'):
+        url = 'http://www.nurs.or.jp/~nagadomi/animeface-character-dataset/data/animeface-character-dataset.zip'
+        response = urllib.request.urlopen(url)
+        with open('dataset/animeface-character-dataset.zip', 'wb') as stream:
+            stream.write(response.read())
+        with zipfile.ZipFile('dataset/animeface-character-dataset.zip', 'r') as stream:
+            stream.extractall('dataset/')
         train = []
         cascade = cv2.CascadeClassifier('lbpcascade_animeface.xml')
         for path in glob.iglob('dataset/**/*.png', recursive=True):
@@ -55,15 +54,10 @@ def main():
                 x = x.transpose(2, 0, 1)
                 x = x.reshape((3, 64, 64))
                 train.append(np.asarray(x))
-                x[0] = np.fliplr(x[0])
-                x[1] = np.fliplr(x[1])
-                x[2] = np.fliplr(x[2])
-                train.append(np.asarray(x))
         train = np.asarray(train, dtype='f')
-        print(len(train))
         np.save('dataset/animeface-character-dataset', train)
-    # os.remove('dataset/animeface-character-dataset.zip') if os.path.exists('dataset/animeface-character-dataset.zip') else None
-    # shutil.rmtree('dataset/animeface-character-dataset', ignore_errors=True)
+    os.remove('dataset/animeface-character-dataset.zip') if os.path.exists('dataset/animeface-character-dataset.zip') else None
+    shutil.rmtree('dataset/animeface-character-dataset', ignore_errors=True)
 
     # Create samples.
     train = np.load('dataset/animeface-character-dataset.npy').reshape((-1, 3, 64, 64))
