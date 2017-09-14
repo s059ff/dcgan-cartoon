@@ -4,10 +4,14 @@ import chainer.links as L
 import chainer.cuda
 import cupy as xp
 import datetime
-import gzip
+import glob
 import numpy as np
 import os
+import shutil
 import urllib.request
+import zipfile
+
+from PIL import Image, ImageOps
 
 from model import Generator
 from model import Discriminator
@@ -15,7 +19,7 @@ from visualize import visualize
 
 # Define constants
 N = 1000    # Minibatch size
-M = 70000
+M = 15000
 SNAPSHOT_INTERVAL = 10
 REAL_LABEL = 1
 FAKE_LABEL = 0
@@ -28,32 +32,36 @@ def main():
     os.mkdir('train/') if not os.path.isdir('train') else None
 
     # (Download dataset)
-    if not os.path.exists('dataset/mnist.npy'):
-        url = 'http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz'
+    if not os.path.exists('dataset/animeface-character-dataset.npy'):
+        url = 'http://www.nurs.or.jp/~nagadomi/animeface-character-dataset/data/animeface-character-dataset.zip'
         response = urllib.request.urlopen(url)
-        with open('dataset/train-images-idx3-ubyte.gz', 'wb') as stream:
+        with open('dataset/animeface-character-dataset.zip', 'wb') as stream:
             stream.write(response.read())
-        url = 'http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz'
-        response = urllib.request.urlopen(url)
-        with open('dataset/t10k-images-idx3-ubyte.gz', 'wb') as stream:
-            stream.write(response.read())
-        train = np.zeros((M, 1, 32, 32), dtype='f')
-        with gzip.open('dataset/train-images-idx3-ubyte.gz') as stream:
-            _ = np.frombuffer(stream.read(), dtype=np.uint8, offset=16).astype('f').reshape((-1, 1, 28, 28))
-        with gzip.open('dataset/t10k-images-idx3-ubyte.gz') as stream:
-            __ = np.frombuffer(stream.read(), dtype=np.uint8, offset=16).astype('f').reshape((-1, 1, 28, 28))
-            _ = np.vstack((_, __))
-        for i in range(M):
-            train[i, 0, 2:30, 2:30] = _[i]
-        train /= 255.
-        np.save('dataset/mnist', train)
-    os.remove('dataset/train-images-idx3-ubyte.gz') if os.path.exists('dataset/train-images-idx3-ubyte.gz') else None
-    os.remove('dataset/t10k-images-idx3-ubyte.gz') if os.path.exists('dataset/t10k-images-idx3-ubyte.gz') else None
+        with zipfile.ZipFile('dataset/animeface-character-dataset.zip', 'r') as stream:
+            stream.extractall('dataset/')
+        train = []
+        for path in glob.iglob('dataset/**/*.png', recursive=True):
+            x = Image.open(path).convert('RGB')
+            x = x.resize((64, 64), Image.ANTIALIAS)
+            x = np.asarray(x, dtype='f') / 255.
+            x = x.transpose(2, 0, 1)
+            x = x.reshape((3, 64, 64))
+            train.append(np.asarray(x))
+        train = np.asarray(train, dtype='f')
+        np.save('dataset/animeface-character-dataset', train)
+    os.remove('dataset/animeface-character-dataset.zip') if os.path.exists('dataset/animeface-character-dataset.zip') else None
+    shutil.rmtree('dataset/animeface-character-dataset', ignore_errors=True)
 
     # Create samples.
-    train = np.load('dataset/mnist.npy').reshape((-1, 1, 32, 32))
+    train = np.load('dataset/animeface-character-dataset.npy').reshape((-1, 3, 64, 64))
     train = np.random.permutation(train)
     validation_z = xp.random.uniform(low=-1.0, high=1.0, size=(100, 100)).astype('f')
+
+    # (Align the number of data)
+    _ = np.zeros((M, 3, 64, 64), dtype='f')
+    for n in range(M):
+        _[n] = train[n % len(train)]
+    train = _
 
     # Create the model
     gen = Generator()
@@ -91,6 +99,9 @@ def main():
             chainer.serializers.save_hdf5("gen.h5", gen)
             chainer.serializers.save_hdf5("dis.h5", dis)
             os.chdir('..')
+
+        # (Random shuffle samples)
+        train = np.random.permutation(train)
 
         total_loss_dis = 0.0
         total_loss_gen = 0.0

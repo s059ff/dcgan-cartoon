@@ -1,5 +1,5 @@
 # dcgan-mnist
-anime-character-datasetを使用したDCGANによるアニメキャラクター画像生成のテストです。
+animeface-character-datasetを使用したDCGANによるアニメキャラクター画像生成のテストです。
 
 ## 実行方法
 `python train.py`  

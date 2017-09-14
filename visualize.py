@@ -7,7 +7,7 @@ def visualize(X, fname):
         plt.subplot(10, 10, i + 1)
         plt.tick_params(labelleft='off', top='off', bottom='off')
         plt.tick_params(labelbottom='off', left='off', right='off')
-        plt.imshow(X[i].transpose(1, 2, 0).reshape((32, 32)), cmap='gray', vmin=0.0, vmax=1.0)
+        plt.imshow(X[i].transpose(1, 2, 0).reshape((64, 64, 3)), vmin=0.0, vmax=1.0)
     plt.savefig(fname)
     plt.close()
     
